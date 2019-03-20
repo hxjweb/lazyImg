@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-wdith,user-scalable=no,
+    initial-scale=1.0,maximum-scale=1.0,mimimum-scale=1.0" >
+    <title>Title</title>
+    <style>
+        *{
+            margin: 0;
+            padding: 0;
+        }
+        ul,li{
+            list-style: none;
+        }
+        img{
+            display: block;
+            border: none;
+        }
+        #news{
+            padding: 10px;
+        }
+        #news li{
+            position: relative;
+            padding: 10px 0;
+            height: 60px;
+            border-bottom: 1px dashed #ccc;
+        }
+        #news li > div:nth-child(1){
+            width: 75px;
+            height: 60px;
+            position: absolute;
+            left: 0;
+            top:10px;
+            /*图片100%展示且居中*/
+            background: url("default.jpg") no-repeat center center;
+            background-size:100% 100% ;
+        }
+        #news li > div:nth-child(1) img{
+            width: 100%;
+            height:100%;
+            display: none;
+            opacity: 0;
+        }
+        #news li > div:nth-child(2){
+            margin-left: 80px;
+            height: 60px;
+        }
+        #news li > div:nth-child(2) h{
+            height: 20px;
+            line-height: 20px;
+            font-size: 16px;
+            color: #333;
+            /*实现文本超出自动裁切*/
+            overflow: hidden;
+            text-overflow: ellipsis;/*超出以...显示*/
+            white-space: nowrap;/*强制不换行*/
+        }
+        #news li > div:nth-child(2) p{
+            line-height: 20px;
+            font-size: 12px;
+            color: #2c3e50;
+        }
+    </style>
+</head>
+<body>
+    <ul id="news">
+        <li>
+            <div>
+                <img src="" trueImg="1.jpg">
+            </div>
+            <div>
+                <h>核心价值观</h>
+                <p>富强民主文明和谐，自由平等公正法制,爱国敬业，诚信友善</p>
+            </div>
+        </li>
+    </ul>
+    <script>
+
+        var val = null;
+        var news = document.getElementById('news'),
+            imgList = news.getElementsByTagName('img');
+        //ajax请求
+        ~function () {
+            var xhr = new XMLHttpRequest();
+            xhr.open('get','news.json?='+Math.random(),false);
+            xhr.onreadystatechange = function () {
+                if(xhr.readyState === 4 && /^2\d{2}$/.test(xhr.status)){
+                    val = xhr.responseText;
+                    val = "JSON" in window ? JSON.parse(val) : eval("('+val+')");
+                }
+            }
+            xhr.send(null);
+        }();
+        //数据绑定
+        ~function () {
+            if(val){
+                var str = '';
+                for(var i=0,len=val.length;i<len;i++){
+                    var curData = val[i];
+                    str += '<li>';
+                    str += '<div><img src=" " trueImg="'+curData["img"]+'"></div>';
+                    str += '<div>';
+                    str += '<h>'+curData["h"]+'</h>';
+                    str += '<p>'+curData["p"]+'</p>'
+                    str += '</div>';
+                    str += '</li>';
+                }
+                news.innerHTML = str;
+            }
+        }()
+       //单张图片懒加载
+       function lazy(curImg) {
+           var img = new Image;
+           img.src = curImg.getAttribute('trueImg');
+           img.onload = function () {
+               curImg.src = this.src;
+               curImg.style.display = 'block';
+               //透明度渐变的显示
+               fadeIn(curImg);
+               img = null;
+           }
+           curImg.isLoad = true;
+       }
+       //图片的offset
+        function offset(curEle) {
+            var totalLeft = null,
+                totalTop = null,
+                par = curEle.offsetParent;
+            totalLeft += curEle.offsetLeft;
+            totalTop += curEle.offsetTop;
+            while (par){
+                if(navigator.userAgent.indexOf('MSIE 8.0') === -1){
+                    totalLeft += par.clientLeft;
+                    totalTop += par.clientTop;
+                }
+                totalLeft += par.offsetLeft;
+                totalTop += par.offsetTop;
+                par = par.offsetParent;
+            }
+            return {left:totalLeft,top:totalTop}
+        }
+        //获取元素的样式
+        function win(attr,value){
+            //如果参数没有value则是获取属性值，如果有value则是给属性赋值
+            if(typeof value === 'undefined'){
+                return document.documentElement[attr] || document.body[attr];
+            }
+            document.documentElement[attr] = value;
+            document.body[attr] = value;
+        }
+        //获取某个样式
+        function getCss(curEle,attr){
+            //curEle为当前元素.attr为要获取的样式属性
+            try{
+                return window.getComputedStyle(curEle,null)[attr];
+            }catch (e){
+                return curEle.currentStyle[attr]
+            }
+        }
+        //循环处理每一张图片
+        function handleAllImg() {
+            for(var i=0,len=imgList.length;i<len;i++){
+                var curImg = imgList[i];
+                if(curImg.isLoad){
+                    continue;
+                }
+                var par = curImg.parentNode;
+                var A = offset(par).top+par.offsetHeight;
+                var B = win('clientHeight')+win('scrollTop');
+                if(A<B){
+                    lazy(curImg);
+                    fadeIn(curImg);
+                }
+            }
+        }
+        //开始的时候过500秒加载第一屏图片
+        window.setTimeout(handleAllImg,500);
+        window.onscroll = handleAllImg;
+        //图片渐进的加载效果
+        /*
+        注意处理浮点数，如果不进行parseFloat则按字符串相加的方法如0.2+0.2 = 0.20.2
+         */
+        function fadeIn(curImg) {
+            var target = 1,
+                duration = 1000,
+                interval = 10;
+            var step = (target/duration)*interval;
+            var timer = window.setInterval(function () {
+                var curOpc = parseFloat(getCss(curImg,'opacity'));
+                if(curOpc >=1){
+                    curImg.style.opacity = 1;
+                    window.clearInterval(timer);
+                    return;
+                }
+                curOpc += parseFloat(step);
+                console.log(curOpc)
+                curImg.style['opacity'] = curOpc;
+            },interval);
+        }
+        handleAllImg();
+
+    </script>
+</body>
+
+</html>
